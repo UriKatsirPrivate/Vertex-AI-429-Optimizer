@@ -1,0 +1,5 @@
+{
+  "name": "Vertex AI 429 Optimizer",
+  "description": "An AI-powered tool for optimizing prompts and code to mitigate HTTP 429 errors.",
+  "requestFramePermissions": []
+}
