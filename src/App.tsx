@@ -4,7 +4,7 @@ import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { Send, RefreshCw, Bot, User, FileCode, Terminal, FileText, Zap, Maximize2, X, List, BookOpen, Layers, Info, Copy, Check, Lightbulb } from 'lucide-react';
+import { Send, RefreshCw, Bot, User, FileCode, Terminal, FileText, Zap, Maximize2, X, List, BookOpen, Layers, Info, Copy, Check, Lightbulb, Github } from 'lucide-react';
 
 import { Message, Artifacts } from './types';
 import { parseArtifacts } from './lib/parser';
@@ -240,9 +240,14 @@ Please ensure the generated code and report strictly follow these configuration 
             <Zap className="w-5 h-5 text-blue-500" />
             <h1 className="font-semibold text-sm">429 Optimizer</h1>
           </div>
-          <button onClick={resetChat} className="p-1.5 hover:bg-gray-800 rounded-md text-gray-400 transition-colors" title="Reset Chat">
-            <RefreshCw className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-4 pr-1">
+            <a href="https://github.com/UriKatsirPrivate/Vertex-AI-429-Optimizer" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-7 h-7 rounded-lg bg-[#171717] border-2 border-blue-600 ring-2 ring-white transition-transform hover:scale-105" title="GitHub Repository">
+              <Github className="w-4 h-4 text-gray-400" />
+            </a>
+            <button onClick={resetChat} className="p-1.5 hover:bg-gray-800 rounded-md text-gray-400 transition-colors" title="Reset Chat">
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Model Selector */}
