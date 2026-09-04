@@ -33,7 +33,8 @@ Upon submitting your code and prompt, the tool generates several artifacts, acce
 ### Prerequisites
 
 * Node.js (v18 or higher)
-* A Gemini API Key
+* A Google Cloud project with the Vertex AI API enabled
+* Authenticated Application Default Credentials: run `gcloud auth application-default login` (no API key is used — the backend talks to Vertex AI via ADC, and a service account is used in production)
 
 ### Installation
 
@@ -42,20 +43,32 @@ Upon submitting your code and prompt, the tool generates several artifacts, acce
    \`\`\`bash
    npm install
    \`\`\`
-3. Create a \`.env\` file in the root directory and add your Gemini API key:
+3. Create a \`.env\` file in the root directory (see \`.env.example\`) with your GCP project:
    \`\`\`env
-   GEMINI_API_KEY=your_api_key_here
+   GOOGLE_CLOUD_PROJECT=your-gcp-project-id
+   GOOGLE_CLOUD_LOCATION=global
    \`\`\`
 
 ### Running the Development Server
 
-Start the Vite development server:
+This app has two parts: a Vite dev server for the frontend and an Express backend that proxies calls to Vertex AI using your local ADC credentials (the frontend never talks to Vertex AI or holds any credentials directly). Start both with:
 
 \`\`\`bash
 npm run dev
 \`\`\`
 
-The application will be available at \`http://localhost:3000\`.
+The application will be available at \`http://localhost:3000\` (the Vite dev server proxies \`/api\` requests to the backend on port 8080).
+
+### Running in Production
+
+Build the frontend, then run the backend, which serves the built assets and the \`/api\` endpoint from a single process:
+
+\`\`\`bash
+npm run build
+npm run start
+\`\`\`
+
+Deploy this to a service like Cloud Run with a service account granted the Vertex AI User role — no API key needs to be configured or shipped to the client.
 
 ## Usage
 
@@ -68,7 +81,8 @@ The application will be available at \`http://localhost:3000\`.
 ## Tech Stack
 
 * **Frontend**: React 18, TypeScript, Vite
+* **Backend**: Express (proxies chat requests to Vertex AI using Application Default Credentials)
 * **Styling**: Tailwind CSS
 * **Icons**: Lucide React
-* **AI Integration**: `@google/genai` SDK
+* **AI Integration**: `@google/genai` SDK (Vertex AI mode)
 * **Markdown Rendering**: `react-markdown`, `remark-gfm`

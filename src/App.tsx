@@ -1,25 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI } from '@google/genai';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Send, RefreshCw, Bot, User, FileCode, Terminal, FileText, Zap, Maximize2, X, List, BookOpen, Layers, Info, Copy, Check, Lightbulb, Github } from 'lucide-react';
 
-import { Message, Artifacts } from './types';
+import { Message, Artifacts, ChatContent } from './types';
 import { parseArtifacts } from './lib/parser';
-import { 
-  systemInstruction, 
-  PROMPT_WITH_CONTEXT, 
-  PROMPT_WITHOUT_CONTEXT, 
-  CODE_WITH_CONTEXT, 
+import {
+  PROMPT_WITH_CONTEXT,
+  PROMPT_WITHOUT_CONTEXT,
+  CODE_WITH_CONTEXT,
   CODE_WITHOUT_CONTEXT,
   generateIntegrationGuide,
   PROMPT_TIPS_MD
 } from './lib/constants';
-
-// Initialize Gemini API
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const CopyButton = ({ text }: { text: string }) => {
   const [copied, setCopied] = useState(false);
@@ -80,8 +75,8 @@ export default function App() {
   const [initialPrompt, setInitialPrompt] = useState(PROMPT_WITH_CONTEXT);
   const [initialCode, setInitialCode] = useState(CODE_WITH_CONTEXT);
 
-  const [chatSession, setChatSession] = useState<any>(null);
-  const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
+  const [history, setHistory] = useState<ChatContent[]>([]);
+  const [selectedModel, setSelectedModel] = useState('gemini-3.8-flash');
   const [activeTab, setActiveTab] = useState<'prompt' | 'code' | 'report' | 'skill' | 'integration' | 'tips'>('prompt');
   const [fullscreenTab, setFullscreenTab] = useState<'prompt' | 'code' | 'report' | 'skill' | 'integration' | 'tips' | null>(null);
   const [artifacts, setArtifacts] = useState({ prompt: '', code: '', report: '', requirements: '', skill: '' });
@@ -139,7 +134,7 @@ export default function App() {
   const resetChat = () => {
     setMessages([]);
     setArtifacts({ prompt: '', code: '', report: '', requirements: '', skill: '' });
-    setChatSession(null);
+    setHistory([]);
     setInput('');
     setInitialPrompt(includeMockContext ? PROMPT_WITH_CONTEXT : PROMPT_WITHOUT_CONTEXT);
     setInitialCode(includeMockContext ? CODE_WITH_CONTEXT : CODE_WITHOUT_CONTEXT);
@@ -184,44 +179,49 @@ Please ensure the generated code and report strictly follow these configuration 
     setIsGenerating(true);
 
     try {
-      let currentChat = chatSession;
-      if (!currentChat) {
-        currentChat = ai.chats.create({
-          model: selectedModel,
-          config: {
-            systemInstruction,
-            temperature: 0.2,
-            tools: [{ googleSearch: {} }],
-          }
-        });
-        setChatSession(currentChat);
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: selectedModel, history, message: textToSend }),
+      });
+
+      if (!response.ok || !response.body) {
+        const errBody = await response.json().catch(() => ({}));
+        throw new Error(errBody.error || `Request failed with status ${response.status}`);
       }
 
-      const responseStream = await currentChat.sendMessageStream({ message: textToSend });
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
       let fullText = '';
 
       setMessages(prev => [...prev, { role: 'model', text: '' }]);
 
-      for await (const chunk of responseStream) {
-        if (chunk.text) {
-          fullText += chunk.text;
-          const parsed = parseArtifacts(fullText);
-          
-          setMessages(prev => {
-            const newMsgs = [...prev];
-            newMsgs[newMsgs.length - 1].text = parsed.conversational || fullText;
-            return newMsgs;
-          });
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        fullText += decoder.decode(value, { stream: true });
+        const parsed = parseArtifacts(fullText);
 
-          setArtifacts(prev => ({
-            prompt: parsed.prompt || prev.prompt,
-            code: parsed.code || prev.code,
-            report: parsed.report || prev.report,
-            requirements: parsed.requirements || prev.requirements,
-            skill: parsed.skill || prev.skill
-          }));
-        }
+        setMessages(prev => {
+          const newMsgs = [...prev];
+          newMsgs[newMsgs.length - 1].text = parsed.conversational || fullText;
+          return newMsgs;
+        });
+
+        setArtifacts(prev => ({
+          prompt: parsed.prompt || prev.prompt,
+          code: parsed.code || prev.code,
+          report: parsed.report || prev.report,
+          requirements: parsed.requirements || prev.requirements,
+          skill: parsed.skill || prev.skill
+        }));
       }
+
+      setHistory(prev => [
+        ...prev,
+        { role: 'user', parts: [{ text: textToSend }] },
+        { role: 'model', parts: [{ text: fullText }] },
+      ]);
     } catch (err: any) {
       console.error(err);
       setMessages(prev => [...prev, { role: 'model', text: `**Error:** ${err.message || 'An error occurred.'}` }]);
@@ -259,8 +259,7 @@ Please ensure the generated code and report strictly follow these configuration 
             disabled={messages.length > 0}
             className="w-full bg-gray-800 text-gray-200 text-sm rounded-md px-3 py-2 border border-gray-700 focus:outline-none focus:border-blue-500 disabled:opacity-50 transition-colors"
           >
-            <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview</option>
-            <option value="gemini-3-flash-preview">gemini-3-flash-preview</option>
+            <option value="gemini-3.8-flash">gemini-3.8-flash</option>
           </select>
           {messages.length > 0 && (
             <p className="text-[10px] text-gray-500 mt-1">Reset chat to change model.</p>

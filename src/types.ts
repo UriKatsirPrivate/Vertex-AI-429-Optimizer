@@ -4,6 +4,11 @@ export interface Message {
   displayText?: string;
 }
 
+export interface ChatContent {
+  role: 'user' | 'model';
+  parts: { text: string }[];
+}
+
 export interface Artifacts {
   prompt: string;
   code: string;
